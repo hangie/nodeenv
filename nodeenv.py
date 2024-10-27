@@ -58,6 +58,8 @@ is_PY3 = sys.version_info[0] >= 3
 is_WIN = platform.system() == 'Windows'
 is_CYGWIN = platform.system().startswith(('CYGWIN', 'MSYS'))
 
+MOD_BIN = 'Scripts' if is_WIN or is_CYGWIN else 'lib'
+
 ignore_ssl_certs = False
 
 # ---------------------------------------------------------
@@ -908,6 +910,7 @@ def install_activate(env_dir, args):
     """
     if is_WIN:
         files = {
+            'activate': ACTIVATE_SH,
             'activate.bat': ACTIVATE_BAT,
             "deactivate.bat": DEACTIVATE_BAT,
             "Activate.ps1": ACTIVATE_PS1
@@ -930,7 +933,7 @@ def install_activate(env_dir, args):
     if args.node == "system":
         files["node"] = SHIM
 
-    mod_dir = join('lib', 'node_modules')
+    mod_dir = join(MOD_BIN, 'node_modules')
     prompt = args.prompt or '(%s)' % os.path.basename(os.path.abspath(env_dir))
 
     if args.node == "system":
@@ -953,6 +956,7 @@ def install_activate(env_dir, args):
         content = content.replace('__SHIM_NODE__', shim_node)
         content = content.replace('__BIN_NAME__', os.path.basename(bin_dir))
         content = content.replace('__MOD_NAME__', mod_dir)
+        content = content.replace('__MOD_BIN__', MOD_BIN)
         if is_CYGWIN:
             _, cyg_bin_dir = callit(
                 ['cygpath', '-w', os.path.abspath(bin_dir)],
@@ -1177,8 +1181,8 @@ set -e NODE_VIRTUAL_ENV_DISABLE_PROMPT
 """,
 }
 
-SHIM = """#!/usr/bin/env bash
-export NODE_PATH='__NODE_VIRTUAL_ENV__/lib/node_modules'
+SHIM = f"""#!/usr/bin/env bash
+export NODE_PATH='__NODE_VIRTUAL_ENV__/{MOD_BIN}/node_modules'
 export NPM_CONFIG_PREFIX='__NODE_VIRTUAL_ENV__'
 export npm_config_prefix='__NODE_VIRTUAL_ENV__'
 exec '__SHIM_NODE__' "$@"
@@ -1366,7 +1370,7 @@ fi
 export NODE_VIRTUAL_ENV
 
 _OLD_NODE_VIRTUAL_PATH="$PATH"
-PATH="$NODE_VIRTUAL_ENV/lib/node_modules/.bin:$NODE_VIRTUAL_ENV/__BIN_NAME__:$PATH"
+PATH="$NODE_VIRTUAL_ENV/__MOD_BIN__/node_modules/.bin:$NODE_VIRTUAL_ENV/__BIN_NAME__:$PATH"
 export PATH
 
 _OLD_NODE_PATH="${NODE_PATH:-}"
@@ -1504,7 +1508,7 @@ end
 set -gx _OLD_NODE_VIRTUAL_PATH $PATH
 # The node_modules/.bin path doesn't exists and it will print a warning, and
 # that's why we redirect stderr to /dev/null :)
-set -gx PATH "$NODE_VIRTUAL_ENV/lib/node_modules/.bin" "$NODE_VIRTUAL_ENV/__BIN_NAME__" $PATH ^/dev/null
+set -gx PATH "$NODE_VIRTUAL_ENV/__MOD_BIN__/node_modules/.bin" "$NODE_VIRTUAL_ENV/__BIN_NAME__" $PATH ^/dev/null
 
 if set -q NODE_PATH
     set -gx _OLD_NODE_PATH $NODE_PATH
