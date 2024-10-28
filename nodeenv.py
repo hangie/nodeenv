@@ -23,6 +23,7 @@ import operator
 import argparse
 import subprocess
 import tarfile
+from typing import List
 if sys.version_info < (3, 3):
     from pipes import quote as _quote
 else:
@@ -32,6 +33,7 @@ import zipfile
 import shutil
 import sysconfig
 import glob
+import pathlib
 
 try:  # pragma: no cover (py2 only)
     from ConfigParser import SafeConfigParser as ConfigParser
@@ -58,7 +60,8 @@ is_PY3 = sys.version_info[0] >= 3
 is_WIN = platform.system() == 'Windows'
 is_CYGWIN = platform.system().startswith(('CYGWIN', 'MSYS'))
 
-MOD_BIN = 'Scripts' if is_WIN or is_CYGWIN else 'lib'
+MOD_BIN = 'Scripts' if is_WIN else 'lib'
+BIN_DIR = 'Scripts' if is_WIN else 'bin'
 
 ignore_ssl_certs = False
 
@@ -885,7 +888,7 @@ def install_packages(env_dir, args):
                 extra=dict(continued=True))
     packages = [package.strip() for package in
                 open(args.requirements).readlines()]
-    activate_path = join(env_dir, 'bin', 'activate')
+    activate_path = pathlib.Path(join(env_dir, BIN_DIR, 'activate')).as_posix()
     real_npm_ver = args.npm if args.npm.count(".") == 2 else args.npm + ".0"
     if args.npm == "latest" or real_npm_ver >= "1.0.0":
         cmd = '. ' + _quote(activate_path) + \
@@ -898,8 +901,8 @@ def install_packages(env_dir, args):
     for package in packages:
         if not package:
             continue
-        callit(cmd=[
-            cmd % {"pack": package}], show_stdout=args.verbose, in_shell=True)
+        callit(cmd=['bash', '-c',
+            cmd % {"pack": package}], show_stdout=args.verbose, in_shell=False)
 
     logger.info('done.')
 
@@ -982,7 +985,7 @@ def install_activate(env_dir, args):
     if not os.path.exists(shim_nodejs):
         if is_WIN:
             try:
-                callit(['mklink', shim_nodejs, 'node.exe'], True, True)
+                callit(['mklink', '/H', shim_nodejs, 'node.exe'], True, True, cwd=bin_dir)
             except OSError:
                 logger.error('Error: Failed to create nodejs.exe link')
         else:
