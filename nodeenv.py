@@ -23,7 +23,6 @@ import operator
 import argparse
 import subprocess
 import tarfile
-from typing import List
 if sys.version_info < (3, 3):
     from pipes import quote as _quote
 else:
@@ -33,7 +32,6 @@ import zipfile
 import shutil
 import sysconfig
 import glob
-import pathlib
 
 try:  # pragma: no cover (py2 only)
     from ConfigParser import SafeConfigParser as ConfigParser
@@ -888,20 +886,26 @@ def install_packages(env_dir, args):
                 extra=dict(continued=True))
     packages = [package.strip() for package in
                 open(args.requirements).readlines()]
-    activate_path = pathlib.Path(join(env_dir, BIN_DIR, 'activate')).as_posix()
+    activate_path = join(env_dir, BIN_DIR, 'activate')
+    if is_WIN:
+        activate_path += '.bat'
+    else:
+        activate_path = '. ' + _quote(activate_path)
     real_npm_ver = args.npm if args.npm.count(".") == 2 else args.npm + ".0"
     if args.npm == "latest" or real_npm_ver >= "1.0.0":
-        cmd = '. ' + _quote(activate_path) + \
+        cmd = activate_path + \
               ' && npm install -g %(pack)s'
     else:
-        cmd = '. ' + _quote(activate_path) + \
+        cmd = activate_path + \
               ' && npm install %(pack)s' + \
               ' && npm activate %(pack)s'
 
+    sys_exe = 'cmd' if is_WIN else 'bash'
+    sys_cmd = '/c' if is_WIN else '-c'
     for package in packages:
         if not package:
             continue
-        callit(cmd=['bash', '-c',
+        callit(cmd=[ sys_exe, sys_cmd,
             cmd % {"pack": package}], show_stdout=args.verbose, in_shell=False)
 
     logger.info('done.')
